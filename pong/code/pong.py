@@ -1,7 +1,7 @@
 import pygame, sys, random
 
 # Restart ball if it hits left or right side
-def ball_restart():
+def ball_start():
     global ball_speed_x, ball_speed_y
     ball.center = (screen_width/2, screen_height/2)
     ## randomizes direction
@@ -10,7 +10,7 @@ def ball_restart():
 
 # Ball animation function
 def ball_animation():
-    global ball_speed_x, ball_speed_y
+    global ball_speed_x, ball_speed_y, player_score, opponent_score
     ## Ball movement
     ball.x += ball_speed_x
     ball.y += ball_speed_y
@@ -25,9 +25,13 @@ def ball_animation():
     # the `if` statement is False. If the condition for the `if` statement 
     # is `True`, the code block for the `if` statement will be executed 
     # and the code block for the `elif` statement will be skipped.
-    if ball.left <= 0 or ball.right >= screen_width:
-        ball_restart()
-        #ball_speed_x *= -1
+    if ball.left <= 0:
+        player_score += 1
+        ball_start()
+    
+    if ball.right >= screen_width:
+        opponent_score += 1
+        ball_start()
 
     # If ball collides with players
     if ball.colliderect(player) or ball.colliderect(opponent):
@@ -42,7 +46,7 @@ def player_animation():
         player.bottom = screen_height
 
 # Opponent (computer) animation
-def opponent_animation():
+def opponent_animation(): 
     if opponent.centery < ball.y:
         opponent.centery += opponent_speed
     if opponent.centery > ball.y:
@@ -62,6 +66,10 @@ screen_height = 768 # 960  # 768
 screen = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption('Pong')
 
+# Colors
+bg_color = pygame.Color('grey12') # color object
+light_grey = (200, 200, 200) # r,g,b
+
 # Game Rectangles
 # Origin of the window (x,y) starts at the top left,
 # if you want to go down you need to INCREASE y.
@@ -70,15 +78,18 @@ ball = pygame.Rect(screen_width/2 - 15, screen_height/2 - 15, 30, 30)
 player = pygame.Rect(screen_width - 20, screen_height/2 - 70, 10, 140)
 opponent = pygame.Rect(10, screen_height/2 - 70, 10, 140)
 
-# Colors
-bg_color = pygame.Color('grey12') # color object
-light_grey = (200, 200, 200) # r,g,b
-
 # Speed variables
 ball_speed_x = 6 * random.choice((1, -1)) # random dir. at BEGINNING of game
 ball_speed_y = 6 * random.choice((1, -1)) # random dir. at BEGINNING of game
 player_speed = 0
 opponent_speed = 7.5
+
+# Text Variables
+player_score = 0
+opponent_score = 0
+## this font should come with every computer
+## .Font(font, size)
+game_font = pygame.font.Font("freesansbold.ttf", 25)
 
 # Checkes if the user has pressed the close button 
 # at the top of the window.
@@ -104,7 +115,7 @@ while True:
             if event.key == pygame.K_UP:
                 player_speed += 5
 
-    # calling functions
+    # Game logic: calling functions
     ball_animation()
     player_animation()
     opponent_animation()
@@ -132,9 +143,22 @@ while True:
                         (screen_width/2, screen_height)
                       ) # drawn last (top)
 
+    ## display surface for text (player)
+    player_text = game_font.render(f"{player_score}", False, light_grey)
+    ## putting text surface on main surface
+    screen.blit(player_text, 
+                (screen_width/2 + 27, screen_height/2)
+               ) # blit puts one surface on another | (660,470)
+    ## display surface for text (opponent)
+    opponent_text = game_font.render(f"{opponent_score}", False, light_grey)
+    ## putting text surface on main surface
+    screen.blit(opponent_text, 
+                (screen_width/2 - 43, screen_height/2)
+               ) # blit puts one surface on another | (660,470)
+
     # Updating the window
     # Entire display.flip() method takes everything that came 
-    # before it in the loop and draw a picture from that.
+    # before it and draw a picture from that.
     pygame.display.flip()
     # Limits how fast the loop runs (60x per second).
     # If you don't control the speed the computer might just try
