@@ -2,21 +2,52 @@ import pygame, sys, random
 
 # Restart ball if it hits left or right side
 def ball_start():
-    global ball_speed_x, ball_speed_y
+    global ball_speed_x, ball_speed_y, score_time
+
+    ## time we are on right now
+    current_time = pygame.time.get_ticks()
+
     ball.center = (screen_width/2, screen_height/2)
-    ## randomizes direction
-    ball_speed_y *= random.choice((1, -1))
-    ball_speed_x *= random.choice((1, -1))
+
+    ## counter timer display
+    if current_time - score_time < 700:
+        number_three = game_font.render("3", False, light_grey)
+        screen.blit(number_three, (screen_width/2 - 10, 
+                                   # positive y values if you want to go DOWN
+                                   screen_height/2 + 50) 
+                    )
+    if 700 < current_time - score_time < 1400:
+        number_two = game_font.render("2", False, light_grey)
+        screen.blit(number_two, (screen_width/2 - 10, 
+                                   screen_height/2 + 50) 
+                    )
+    if 1400 < current_time - score_time < 2100:
+        number_one = game_font.render("1", False, light_grey)
+        screen.blit(number_one, (screen_width/2 - 10, 
+                                   screen_height/2 + 50) 
+                    )
+
+    if current_time - score_time < 2100:
+        ball_speed_x, ball_speed_y = 0, 0
+    else:
+        ## randomizes direction
+        ball_speed_y = ball_speed * random.choice((1, -1))
+        ball_speed_x = ball_speed * random.choice((1, -1))
+        score_time = None
+
 
 # Ball animation function
 def ball_animation():
-    global ball_speed_x, ball_speed_y, player_score, opponent_score
+    global ball_speed_x, ball_speed_y, \
+           player_score, opponent_score, score_time
     ## Ball movement
     ball.x += ball_speed_x
     ball.y += ball_speed_y
     ## If ball hits screen
     if ball.top <= 0 or ball.bottom >= screen_height:
+        pygame.mixer.Sound.play(pong_sound)
         ball_speed_y *= -1
+
     # When you use two `if` statements, both conditions will be tested 
     # and the code blocks for both `if` statements will be executed if 
     # their respective conditions are `True`. However, when you use an 
@@ -25,17 +56,42 @@ def ball_animation():
     # the `if` statement is False. If the condition for the `if` statement 
     # is `True`, the code block for the `if` statement will be executed 
     # and the code block for the `elif` statement will be skipped.
-    if ball.left <= 0:
-        player_score += 1
-        ball_start()
-    
-    if ball.right >= screen_width:
-        opponent_score += 1
-        ball_start()
 
-    # If ball collides with players
-    if ball.colliderect(player) or ball.colliderect(opponent):
-        ball_speed_x *= -1
+    ## player score
+    if ball.left <= 0:
+        pygame.mixer.Sound.play(score_sound)
+        score_time = pygame.time.get_ticks() # only running once
+        player_score += 1
+        ## Give us an interger that tells us for how long the game
+        ## has been running since it was started (or more specifically-
+        ## since pygame.init() method was called).
+    ## opponent score
+    if ball.right >= screen_width:
+        pygame.mixer.Sound.play(score_sound)
+        score_time = pygame.time.get_ticks() # only running once
+        opponent_score += 1
+
+    # If ball collides with player & opponent
+    ## checks if collision has occured (player)
+    if ball.colliderect(player) and ball_speed_x > 0:
+        pygame.mixer.Sound.play(pong_sound)
+        ## checks what side the collision has occured
+        if abs(ball.right - player.left) < 10: # 10 is tolerance for wiggle room
+            ball_speed_x *= -1
+        elif abs(ball.bottom - player.top) < 10 and (ball_speed_y > 0):
+            ball_speed_y *= -1
+        elif abs(ball.top - player.bottom) < 10 and (ball_speed_y < 0):
+            ball_speed_y *= -1
+    ## checks if collision has occured (opponent)
+    if ball.colliderect(opponent) and ball_speed_x < 0:
+        pygame.mixer.Sound.play(pong_sound)
+        if abs(ball.left - opponent.right) < 10:
+            ball_speed_x *= -1
+        elif abs(ball.bottom - opponent.top) < 10 and (ball_speed_y > 0):
+            ball_speed_y *= -1
+        elif abs(ball.top - opponent.bottom) < 10 and (ball_speed_y < 0):
+            ball_speed_y *= -1
+
 
 # Player animation function
 def player_animation():
@@ -44,6 +100,7 @@ def player_animation():
         player.top = 0
     if player.bottom >= screen_height:
         player.bottom = screen_height
+
 
 # Opponent (computer) animation
 def opponent_animation(): 
@@ -56,7 +113,10 @@ def opponent_animation():
     if opponent.bottom >= screen_height:
         opponent.bottom = screen_height
 
+
+
 # General setup
+pygame.mixer.pre_init(44100, -16, 2, 512) # 512 is the buffer size (default: 4096)
 pygame.init() # initiates all pygame modules
 clock = pygame.time.Clock()
 
@@ -67,7 +127,7 @@ screen = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption('Pong')
 
 # Colors
-bg_color = pygame.Color('grey12') # color object
+bg_color = pygame.Color('#2F373F') # color object
 light_grey = (200, 200, 200) # r,g,b
 
 # Game Rectangles
@@ -79,8 +139,9 @@ player = pygame.Rect(screen_width - 20, screen_height/2 - 70, 10, 140)
 opponent = pygame.Rect(10, screen_height/2 - 70, 10, 140)
 
 # Speed variables
-ball_speed_x = 6 * random.choice((1, -1)) # random dir. at BEGINNING of game
-ball_speed_y = 6 * random.choice((1, -1)) # random dir. at BEGINNING of game
+ball_speed = 6
+ball_speed_x = ball_speed * random.choice((1, -1)) # random dir. at BEGINNING of game
+ball_speed_y = ball_speed * random.choice((1, -1)) # random dir. at BEGINNING of game
 player_speed = 0
 opponent_speed = 7.5
 
@@ -90,6 +151,13 @@ opponent_score = 0
 ## this font should come with every computer
 ## .Font(font, size)
 game_font = pygame.font.Font("freesansbold.ttf", 25)
+
+# Sound
+pong_sound = pygame.mixer.Sound("./sounds/pong.ogg")
+score_sound = pygame.mixer.Sound("./sounds/score.ogg")
+
+# Score Timer
+score_time = True
 
 # Checkes if the user has pressed the close button 
 # at the top of the window.
@@ -142,6 +210,9 @@ while True:
                         (screen_width/2, 0), 
                         (screen_width/2, screen_height)
                       ) # drawn last (top)
+
+    if score_time:
+        ball_start()
 
     ## display surface for text (player)
     player_text = game_font.render(f"{player_score}", False, light_grey)
