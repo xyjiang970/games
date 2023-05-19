@@ -1,5 +1,6 @@
 import pygame, sys
 from player import Player
+import obstacle
 
 class Game:
     def __init__(self):
@@ -10,14 +11,42 @@ class Game:
 
         Sprite groups will be added here (player, aliens, etc).
         """
-        player_sprite = Player((300, 300))
+        ## Player Setup
+        player_sprite = Player((screen_width/2, screen_height), screen_width, 5)
         self.player = pygame.sprite.GroupSingle(player_sprite)
+
+        ## Obstacle Setup
+        self.shape = obstacle.shape
+        self.block_size = 6
+        self.blocks = pygame.sprite.Group()
+        self.create_obstacle(40, 480)
+
+    def create_obstacle(self, x_start, y_start):
+       """
+       Function that creates one obstacle. The obstacle consists of individual blocks
+       and each of the blocks is a sprite. All sprites are arranged in a way to look like an obstacle
+       (couple of square shaped sprites in a certain shape).
+
+       Nested for loop with enumerate method is used to figure out which row, column (column within each row) 
+       we are on.
+       """
+       for row_index, row in enumerate(self.shape): # vertical direction (rows)
+           for col_index, col in enumerate(row): # horizontal direction (columns)
+               if col == 'x': # ignore empty spaces
+                   x = x_start + (col_index * self.block_size)
+                   y = y_start + (row_index * self.block_size)
+                   block = obstacle.Block(self.block_size, 
+                                         (241,79,80), x, y)
+                   self.blocks.add(block)
     
     def run(self):
-        """
-        Update and draw all sprite groups.
-        """
+        ## Updates and draw all sprite groups.
+        self.player.update()
+
+        self.player.sprite.lasers.draw(screen)
         self.player.draw(screen)
+
+        self.blocks.draw(screen)
 
 # Using this if statement because due to working with multiple files,
 # there is a chance to execute code that is not actually intended to run, so
