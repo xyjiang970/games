@@ -1,6 +1,9 @@
 import pygame, sys
 from player import Player
 import obstacle
+from alien import Alien, Extra
+from random import choice, randint
+from laser import Laser
 
 class Game:
     def __init__(self):
@@ -19,9 +22,31 @@ class Game:
         self.shape = obstacle.shape
         self.block_size = 6
         self.blocks = pygame.sprite.Group()
-        self.create_obstacle(40, 480)
+        self.obstacle_amount = 4
+        self.obstacle_x_positions = [num*(screen_width / self.obstacle_amount) \
+                                     for num in range(self.obstacle_amount)]
+        ## *self.obstacle_x_positions allows for unpacking of the elements in the 
+        ## self.obstacle_x_positions list!
+        self.create_multiple_obstacles(*self.obstacle_x_positions, 
+                                       # x_start positions left most obstacle
+                                       x_start=(screen_width/14), # 14-15 works best
+                                       y_start=480)
+        
+        ## Alien Setup
+        self.aliens = pygame.sprite.Group()
+        ### Player laser and alien laser needs to be in separate groups due to collision 
+        ### logic. If all lasers are in the same group, the player will be hit immediately
+        ### everytime the player spawns a laser (because the player laser spawns 
+        ### right behind the player).
+        self.alien_lasers = pygame.sprite.Group()      
+        self.alien_setup(rows=6, cols=8) # create all of the aliens in a specific position.
+        self.alien_direction = 1
+        
+        ## For Extra Alien Setup
+        self.extra = pygame.sprite.GroupSingle()
+        self.extra_spawn_time = randint(400, 800) # extra alien spawn timer - randomized.
 
-    def create_obstacle(self, x_start, y_start):
+    def create_obstacle(self, x_start, y_start, offset_x):
        """
        Function that creates one obstacle. The obstacle consists of individual blocks
        and each of the blocks is a sprite. All sprites are arranged in a way to look like an obstacle
@@ -33,20 +58,90 @@ class Game:
        for row_index, row in enumerate(self.shape): # vertical direction (rows)
            for col_index, col in enumerate(row): # horizontal direction (columns)
                if col == 'x': # ignore empty spaces
-                   x = x_start + (col_index * self.block_size)
+                   x = x_start + (col_index * self.block_size) + offset_x
                    y = y_start + (row_index * self.block_size)
                    block = obstacle.Block(self.block_size, 
                                          (241,79,80), x, y)
                    self.blocks.add(block)
-    
+
+    ## Cannot use positional arguments after named arguments so x_start & y_start
+    ## need to come after *offset.
+    def create_multiple_obstacles(self, *offset, x_start, y_start):
+        for offset_x in offset:
+            self.create_obstacle(x_start, y_start, offset_x)
+
+    def alien_setup(self, rows, cols, x_distance=60, y_distance=48, x_offset=70, y_offset=100):
+        """
+        Creates all of the aliens in a specific position.
+        """
+        for row_index, row in enumerate(range(rows)):
+            for col_index, col in enumerate(range(cols)):
+                x = (col_index * x_distance) + x_offset
+                y = (row_index * y_distance) + y_offset
+
+                if row_index == 0: # top row
+                    alien_sprite = Alien('yellow', x, y)
+                elif 1 <= row_index <= 2: alien_sprite = Alien('green', x, y)
+                else: alien_sprite = Alien('red', x, y)
+                self.aliens.add(alien_sprite)
+
+    def alien_position_checker(self):
+        """
+        Cycle through every single alien and if any of the aliens if too far to the right,
+        change the direction (self.alien_direction) to -1 (opposite direction). If the aliens
+        move too far to the left (< 0), again change the direction to opposite.
+        """
+        all_aliens = self.aliens.sprites()
+        for alien in all_aliens: # look at all sprites individually
+            if alien.rect.right >= screen_width:
+                self.alien_direction = -1
+                self.alien_move_down(1)
+            elif alien.rect.left <= 0:
+                self.alien_direction = 1
+                self.alien_move_down(1)
+
+    def alien_move_down(self, distance):
+        """
+        Anytime aliens hit either left or right side, move them downwards by a couple pixels.
+        """
+        ## Will only be run if they are aliens inside the of the alien class. Because if the player
+        ## shot down all of the aliens there is no need to keep this method running (will error out).
+        if self.aliens:
+            for alien in self.aliens.sprites():
+                alien.rect.y += distance
+
+    def alien_shoot(self):
+        ## Will only be run if they are aliens inside the of the alien class.
+        if self.aliens.sprites():
+            ## Randomly select a single alien out of all aliens.
+            random_alien = choice(self.aliens.sprites())
+            laser_sprite = Laser(random_alien.rect.center, 6, screen_height)
+            self.alien_lasers.add(laser_sprite)
+
+    def extra_alien_timer(self):
+        self.extra_spawn_time -= 1
+        if self.extra_spawn_time <= 0: # spawns the extra alien when timer hits 0.
+            ## Spawns randomly either on left or right side of screen.
+            self.extra.add(Extra(choice(['right', 'left']), screen_width)) 
+            self.extra_spawn_time = randint(400, 800) # set new timer for next extra alien.
+
     def run(self):
         ## Updates and draw all sprite groups.
         self.player.update()
+        self.aliens.update(self.alien_direction)
+        self.alien_position_checker()
+        self.alien_lasers.update()
+        self.extra_alien_timer()
+        self.extra.update()
 
         self.player.sprite.lasers.draw(screen)
         self.player.draw(screen)
 
         self.blocks.draw(screen)
+
+        self.aliens.draw(screen)
+        self.alien_lasers.draw(screen)
+        self.extra.draw(screen)
 
 # Using this if statement because due to working with multiple files,
 # there is a chance to execute code that is not actually intended to run, so
@@ -59,11 +154,14 @@ if __name__ == '__main__':
     pygame.init()
     
     ## Global Variables
-    screen_width = 600
-    screen_height = 600
+    screen_width = 600 # 800
+    screen_height = 600 # 800
     screen = pygame.display.set_mode((screen_width, screen_height))
     clock = pygame.time.Clock()
     game = Game() # Creates instance of game.
+
+    ALIENLASER = pygame.USEREVENT + 1
+    pygame.time.set_timer(ALIENLASER, 800) # One laser shot (from alien) every 800 milliseconds.
 
     while True:
         ## Handling inputs
@@ -74,6 +172,8 @@ if __name__ == '__main__':
                 (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE): 
                 pygame.quit()
                 sys.exit()
+            if event.type == ALIENLASER:
+                game.alien_shoot()
         
         screen.fill((30, 30, 30))
         game.run() # Runs the game.
