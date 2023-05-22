@@ -35,6 +35,9 @@ class Player(pygame.sprite.Sprite):
 
         self.lasers = pygame.sprite.Group()
 
+        self.laser_sound = pygame.mixer.Sound('audio/laser.wav')
+        self.laser_sound.set_volume(0.05)
+
     def get_input(self):
         """
         Checks different keys being pressed.
@@ -47,10 +50,10 @@ class Player(pygame.sprite.Sprite):
         
         if keys[pygame.K_SPACE] and self.ready:
             self.shoot_laser()
-
             ## Laser will need a timer otherwise player can hold down key and shoot forever.
             self.ready = False
             self.laser_time = pygame.time.get_ticks() # Measure time since game has started (only used once).
+            self.laser_sound.play()
 
     def recharge(self):
         if not self.ready:
