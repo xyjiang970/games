@@ -18,6 +18,11 @@ class Game:
         player_sprite = Player((screen_width/2, screen_height), screen_width, 5)
         self.player = pygame.sprite.GroupSingle(player_sprite)
 
+        ## Health and Score Setup
+        self.lives = 3
+        self.lives_surf = pygame.image.load('graphics/player.png').convert_alpha()
+        self.lives_x_start_pos = screen_width - (self.lives_surf.get_size()[0]*2 + 20) # Get x parameter (width)
+
         ## Obstacle Setup
         self.shape = obstacle.shape
         self.block_size = 6
@@ -125,6 +130,49 @@ class Game:
             self.extra.add(Extra(choice(['right', 'left']), screen_width)) 
             self.extra_spawn_time = randint(400, 800) # set new timer for next extra alien.
 
+    def collision_checks(self):
+        ## Player lasers
+        if self.player.sprite.lasers:
+            for laser in self.player.sprite.lasers:
+                ## Obstacle collisions
+                if pygame.sprite.spritecollide(laser, self.blocks, True): # Destroy block
+                    laser.kill() # Destroy laser once it hits the block 
+
+                ## Alien collisions
+                if pygame.sprite.spritecollide(laser, self.aliens, True): # Destroy alien
+                    laser.kill() # Destroy laser once it hits the block 
+
+                ## Extra Alien collision
+                if pygame.sprite.spritecollide(laser, self.extra, True): # Destroy extra alien
+                    laser.kill() # Destroy laser once it hits the block 
+
+        ## Alien lasers
+        if self.alien_lasers:
+            for laser in self.alien_lasers:
+                ## Obstacle collisions
+                if pygame.sprite.spritecollide(laser, self.blocks, True): # Destroy block
+                    laser.kill() # Destroy laser once it hits the block 
+
+                ## Alien collisions
+                if pygame.sprite.spritecollide(laser, self.player, False): # False to not destroy player
+                    laser.kill() # Destroy laser once it hits the block
+                    print('dead')
+
+        ## Aliens
+        if self.aliens:
+            for alien in self.aliens:
+                ## If alien collides with block, destroy the block.
+                pygame.sprite.spritecollide(alien, self.blocks, True)
+
+                ## If alien collides with block, destroy the player.
+                if pygame.sprite.spritecollide(alien, self.player, True):
+                    pygame.quit()
+
+    def display_lives(self):
+        for lives in range(self.lives - 1):
+            x = self.lives_x_start_pos + (lives * (self.lives_surf.get_size()[0] + 10)) # offset of 10
+            screen.blit(self.lives_surf, (x, 8))
+
     def run(self):
         ## Updates and draw all sprite groups.
         self.player.update()
@@ -133,6 +181,8 @@ class Game:
         self.alien_lasers.update()
         self.extra_alien_timer()
         self.extra.update()
+        self.collision_checks()
+        self.display_lives()
 
         self.player.sprite.lasers.draw(screen)
         self.player.draw(screen)
